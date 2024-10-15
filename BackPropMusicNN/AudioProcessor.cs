@@ -12,7 +12,7 @@ namespace GenreMusicNN
         private int sampleRate;
         private int mfccCount = 60; // Количество MFCC коэффициентов
         private int timeSteps = 4096; // Количество временных окон
-        private int stepMultyplier = 2;
+        private int stepMultyplier = 3;
 
         // Конструктор класса
         public AudioProcessor(int sampleRate = 44100)

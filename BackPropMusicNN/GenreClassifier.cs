@@ -105,7 +105,9 @@ namespace GenreMusicNN
             // Создание callback для ранней остановки
             var earlyStopping = new EarlyStopping(monitor: "loss", patience: 30, verbose: 1, restore_best_weights: true);
             // Теперь передаем NDarray в Keras модель
+            Console.WriteLine("Starting training...");
             model.Fit(X_train_nd, Y_train_nd, batch_size: batch_size, epochs: epochs, callbacks: new Callback[] { earlyStopping });
+            Console.WriteLine("Ready!");
         }
 
         // Метод для предсказания жанра
@@ -139,6 +141,7 @@ namespace GenreMusicNN
         public void SaveModel(string filePath)
         {
             model.Save(filePath);
+            Console.WriteLine("Model saved");
         }
 
         // Метод для загрузки модели

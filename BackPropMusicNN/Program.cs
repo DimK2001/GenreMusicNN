@@ -1,7 +1,16 @@
+using System;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+
 namespace GenreMusicNN
 {
     internal static class Program
     {
+        [DllImport("kernel32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool AllocConsole();
+        [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+        static extern bool FreeConsole();
         /// <summary>
         ///  The main entry point for the application.
         /// </summary>
@@ -746,9 +755,16 @@ namespace GenreMusicNN
 
             // To customize application configuration such as set high DPI settings or default font,
             // see https://aka.ms/applicationconfiguration.
-            ApplicationConfiguration.Initialize();
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+//#if DEBUG
+            AllocConsole();
+            Console.WriteLine("Debug Console");
+//#endif
             Application.Run(new MainWindow(audioProcessor));
-            // Создаем экземпляр AudioProcessor  
+//#if DEBUG
+            FreeConsole();
+//#endif
         }
     }
 }
