@@ -56,6 +56,7 @@
 
         private void Retrain_Click(object sender, EventArgs e)
         {
+            TrainingData.LoadSongBase();
             RetrainNetwork();
         }
     }

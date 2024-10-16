@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
+using static HDF.PInvoke.H5T;
 
 namespace GenreMusicNN
 {
@@ -27,6 +29,37 @@ namespace GenreMusicNN
         {
             AudioFiles.Add(filePath);
             Labels.Add(labelVector);
+        }
+
+        public static async void LoadSongBase()
+        {
+            var songs = Directory.GetFiles("SongBase");
+            foreach (var songPath in songs)
+            {
+                using (FileStream fs = new FileStream(songPath, FileMode.Open))
+                {
+                    Song? song = await JsonSerializer.DeserializeAsync<Song>(fs);
+                    if (song != null) AddAudioFile(song.filePath, song.labelVector);
+                }
+            }
+        }
+
+        public static void AddToSongBase(string filePath, float[] labelVector)
+        {
+            var song = new Song
+            {
+                filePath = filePath,
+                labelVector = labelVector
+            };
+            string fileName = "SongBase\\" + filePath.Split("\\")[filePath.Split("\\").Length - 1] + ".json";
+            string jsonString = JsonSerializer.Serialize(song);
+            File.WriteAllText(fileName, jsonString);
+        }
+
+        public class Song
+        {
+            public string filePath { get; set; }
+            public float[] labelVector { get; set; }
         }
     }
 }

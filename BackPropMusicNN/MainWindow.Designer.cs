@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainWindow));
             FileName = new TextBox();
             label1 = new Label();
             openFileDialog1 = new OpenFileDialog();
@@ -36,6 +37,7 @@
             ResultsText = new Label();
             Result = new Label();
             Retrain = new Button();
+            WarningLabel = new Label();
             SuspendLayout();
             // 
             // FileName
@@ -107,11 +109,20 @@
             Retrain.UseVisualStyleBackColor = true;
             Retrain.Click += Retrain_Click;
             // 
+            // WarningLabel
+            // 
+            WarningLabel.Location = new Point(423, 52);
+            WarningLabel.Name = "WarningLabel";
+            WarningLabel.Size = new Size(177, 141);
+            WarningLabel.TabIndex = 7;
+            WarningLabel.Text = resources.GetString("WarningLabel.Text");
+            // 
             // MainWindow
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(599, 380);
+            Controls.Add(WarningLabel);
             Controls.Add(Retrain);
             Controls.Add(Result);
             Controls.Add(ResultsText);
@@ -136,5 +147,6 @@
         private Label ResultsText;
         private Label Result;
         private Button Retrain;
+        private Label WarningLabel;
     }
 }
