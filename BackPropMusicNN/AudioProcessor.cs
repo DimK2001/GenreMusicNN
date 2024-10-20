@@ -1,18 +1,15 @@
 ﻿using Accord.Audio;
-using Accord.Audio.Formats;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
-using System;
-using System.Linq;
 
 namespace GenreMusicNN
 {
     internal class AudioProcessor
     {
         private int sampleRate;
-        private int mfccCount = 60; // Количество MFCC коэффициентов
-        private int timeSteps = 4096; // Количество временных окон
-        private int stepMultyplier = 3;
+        private const int mfccCount = 60; // Количество MFCC коэффициентов
+        private const int timeSteps = 4096; // Количество временных окон
+        private const int stepMultyplier = 10;
 
         // Конструктор класса
         public AudioProcessor(int sampleRate = 44100)

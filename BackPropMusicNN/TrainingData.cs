@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
-using static HDF.PInvoke.H5T;
+﻿using System.Text.Json;
 
 namespace GenreMusicNN
 {
@@ -31,7 +25,7 @@ namespace GenreMusicNN
             Labels.Add(labelVector);
         }
 
-        public static async void LoadSongBase()
+        public static async Task LoadSongBase()
         {
             var songs = Directory.GetFiles("SongBase");
             foreach (var songPath in songs)
@@ -42,6 +36,7 @@ namespace GenreMusicNN
                     if (song != null) AddAudioFile(song.filePath, song.labelVector);
                 }
             }
+            return;
         }
 
         public static void AddToSongBase(string filePath, float[] labelVector)

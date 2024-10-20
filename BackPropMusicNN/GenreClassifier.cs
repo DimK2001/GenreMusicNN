@@ -1,10 +1,7 @@
 ﻿using Keras;
 using Keras.Layers;
 using Keras.Models;
-using Keras.Optimizers;
 using Numpy;
-using System;
-using System.Threading;
 using Keras.Callbacks;
 
 namespace GenreMusicNN

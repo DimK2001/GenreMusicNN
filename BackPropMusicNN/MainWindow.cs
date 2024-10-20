@@ -40,7 +40,7 @@
         {
             openFileDialog1.InitialDirectory = FileName.Text;
             openFileDialog1.Filter = "mp3 files (*.mp3)|*.mp3|wave files (*.wav)|*.wav|ogg files (*.ogg)|*.ogg|All files (*.*)|*.*";
-            openFileDialog1.FilterIndex = 1;
+            openFileDialog1.FilterIndex = 4;
             openFileDialog1.RestoreDirectory = true;
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
@@ -54,9 +54,9 @@
             Result.Text = GenreClassification(FileName.Text);
         }
 
-        private void Retrain_Click(object sender, EventArgs e)
+        private async void Retrain_Click(object sender, EventArgs e)
         {
-            TrainingData.LoadSongBase();
+            await TrainingData.LoadSongBase();
             RetrainNetwork();
         }
     }
