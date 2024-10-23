@@ -3,6 +3,7 @@ using Keras.Layers;
 using Keras.Models;
 using Numpy;
 using Keras.Callbacks;
+using static Tensorflow.TensorShapeProto.Types;
 
 namespace GenreMusicNN
 {
@@ -25,7 +26,7 @@ namespace GenreMusicNN
         // Метод построения архитектуры CNN + LSTM
         private void BuildModel()
         {
-            var inputShape = new int[] { numTimeSteps, numMFCCs, 1 }; // 2D вход
+            var inputShape = new int[] { numTimeSteps, numMFCCs, 2 }; // Входной размер данных [время, коэффициенты, 2 (k, b)]
             Shape shape = new Shape(inputShape);
 
             model = new Sequential();
@@ -55,20 +56,17 @@ namespace GenreMusicNN
             model.Add(new Dense(TrainingData.GenreMapping.Count, activation: "softmax"));
 
             model.Compile(optimizer: "adam", loss: "categorical_crossentropy", metrics: new string[] { "accuracy" });
-            // Печать структуры модели
-            //model.Summary();
         }
 
         // Метод для обучения модели
-        public void Train(float[][][] X_train, float[][] Y_train, int batch_size = 32, int epochs = 1000)
+        public void Train(float[][][][] X_train, float[][] Y_train, int batch_size = 32, int epochs = 1000)
         {
-            // Преобразование 3D массива в одномерный и передача его в NDarray с правильной формой
+            // Преобразование 4D массива в одномерный и передача его в NDarray с правильной формой
             int dim1 = X_train.Length;
             int dim2 = X_train[0].Length;
             int dim3 = X_train[0][0].Length;
-
-            // Преобразование трехмерного массива в одномерный
-            float[] flattenedArray = new float[dim1 * dim2 * dim3];
+            int dim4 = X_train[0][0][0].Length;
+            float[] flattenedArray = new float[dim1 * dim2 * dim3 * dim4];
             int index = 0;
             for (int i = 0; i < dim1; i++)
             {
@@ -76,15 +74,16 @@ namespace GenreMusicNN
                 {
                     for (int k = 0; k < dim3; k++)
                     {
-                        flattenedArray[index++] = X_train[i][j][k];
+                        for (int m = 0; m < dim4; m++)
+                        {
+                            flattenedArray[index++] = X_train[i][j][k][m];
+                        }
                     }
                 }
             }
 
             // Преобразуем одномерный массив в NDarray с указанием формы
-            NDarray X_train_nd = np.array(flattenedArray).reshape(dim1, dim2, dim3);
-
-            // Аналогично для меток (Y_train)
+            NDarray X_train_nd = np.array(flattenedArray).reshape(dim1, dim2, dim3, dim4);
             int y_dim1 = Y_train.Length;
             int y_dim2 = Y_train[0].Length;
 
@@ -99,24 +98,23 @@ namespace GenreMusicNN
             }
 
             NDarray Y_train_nd = np.array(flattenedY).reshape(y_dim1, y_dim2);
-            // Создание callback для ранней остановки
+            // Callback для ранней остановки
             var earlyStopping = new EarlyStopping(monitor: "loss", patience: 30, verbose: 1, restore_best_weights: true);
-            // Теперь передаем NDarray в Keras модель
+            // Начало обучения
             Console.WriteLine("Starting training...");
             model.Fit(X_train_nd, Y_train_nd, batch_size: batch_size, epochs: epochs, callbacks: new Callback[] { earlyStopping });
             Console.WriteLine("Ready!");
         }
 
         // Метод для предсказания жанра
-        public float[] Predict(float[][][] mfccData)
+        public float[] Predict(float[][][][] mfccData)
         {
-            // Преобразование 3D массива в одномерный и передача его в NDarray с правильной формой
+            // Преобразование 4D массива в одномерный и передача его в NDarray с правильной формой
             int dim1 = mfccData.Length;
             int dim2 = mfccData[0].Length;
             int dim3 = mfccData[0][0].Length;
-
-            // Преобразование трехмерного массива в одномерный
-            float[] flattenedArray = new float[dim1 * dim2 * dim3];
+            int dim4 = mfccData[0][0][0].Length;
+            float[] flattenedArray = new float[dim1 * dim2 * dim3 * dim4];
             int index = 0;
             for (int i = 0; i < dim1; i++)
             {
@@ -124,13 +122,15 @@ namespace GenreMusicNN
                 {
                     for (int k = 0; k < dim3; k++)
                     {
-                        flattenedArray[index++] = mfccData[i][j][k];
+                        for (int m = 0; m < dim4; m++)
+                        {
+                            flattenedArray[index++] = mfccData[i][j][k][m];
+                        }
                     }
                 }
             }
-
             // Преобразуем одномерный массив в NDarray с указанием формы
-            NDarray mfccData_nd = np.array(flattenedArray).reshape(1, dim1, dim2);
+            NDarray mfccData_nd = np.array(flattenedArray).reshape(1, dim1, dim2, dim3, dim4); // Учёт нового измерения
             var predictions = model.Predict(mfccData_nd);
             return predictions.GetData<float>();
         }
