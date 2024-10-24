@@ -1,15 +1,16 @@
 ﻿using Accord.Audio;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using NAudio.Dsp;
 
 namespace GenreMusicNN
 {
     internal class AudioProcessor
     {
         private int sampleRate;
-        private const int mfccCount = 60; // Количество MFCC коэффициентов
-        private const int timeSteps = 4096; // Количество временных окон
-        private const int stepMultyplier = 6;
+        private const int mfccCount = 128; // Количество MFCC коэффициентов
+        private const int timeSteps = 1024; // Количество временных окон
+        private const int stepMultyplier = 2;
 
         // Конструктор класса
         public AudioProcessor(int sampleRate = 44100)
@@ -18,9 +19,9 @@ namespace GenreMusicNN
         }
 
         // Метод чтения аудиофайла и подготовки данных для нейросети
-        public float[][][] ProcessAudioFile(string filePath)
+        public float[][][][] ProcessAudioFile(string filePath)
         {
-            float[][][] preparedData = new float[1][][];
+            float[][][][] preparedData = new float[3][][][];
             float[] audioData = new float[1];
             try
             {
@@ -40,7 +41,6 @@ namespace GenreMusicNN
             {
                 // Извлекаем MFCC из аудиоданных
                 var mfcc = ExtractMFCC(audioData);
-
                 // Приводим к требуемому размеру (дополнение или обрезка)
                 preparedData = PrepareDataForNeuralNetwork(mfcc);
             }
@@ -50,33 +50,29 @@ namespace GenreMusicNN
         // Метод загрузки аудиофайла
         private float[] LoadAudioFile(string filePath, out int actualSampleRate)
         {
+            float[] audioData;
             using (var audioFileReader = new AudioFileReader(filePath))
             {
                 // Получаем фактическую частоту дискретизации из аудиофайла
                 actualSampleRate = audioFileReader.WaveFormat.SampleRate;
-
                 // Вычисляем параметры аудио
                 int bytesPerSample = audioFileReader.WaveFormat.BitsPerSample / 8; // Количество байт на сэмпл
                 int blockAlign = audioFileReader.WaveFormat.BlockAlign;            // Размер блока (байт на все каналы)
                 int totalSamples = (int)(audioFileReader.Length / bytesPerSample); // Общее количество сэмплов
-
-                // Создаем буфер для данных
-                float[] audioData = new float[totalSamples];
-
+                                                                                   // Создаем буфер для данных
+                audioData = new float[totalSamples];
                 // Читаем данные из файла блоками
                 int samplesRead = 0;
                 int offset = 0;
                 byte[] buffer = new byte[blockAlign]; // Буфер для чтения данных блоками
                 float sampleValue = 0f;
-
                 while (samplesRead < totalSamples)
                 {
                     // Чтение одного блока данных
                     int bytesRead = audioFileReader.Read(buffer, 0, blockAlign);
                     if (bytesRead == 0)
                         break; // Если больше нечего читать, выходим из цикла
-
-                    // Преобразование байтов в сэмплы (нормализация до float от -1.0f до 1.0f)
+                               // Преобразование байтов в сэмплы (нормализация до float от -1.0f до 1.0f)
                     for (int i = 0; i < bytesRead / bytesPerSample; i++)
                     {
                         // Преобразование сэмплов в float
@@ -90,14 +86,11 @@ namespace GenreMusicNN
                             // Если 32 бит, конвертируем из Int32 в float
                             sampleValue = BitConverter.ToInt32(buffer, i * bytesPerSample) / (float)Int32.MaxValue;
                         }
-
                         audioData[offset + i] = sampleValue; // Записываем в аудиомассив
                     }
-
                     offset += bytesRead / bytesPerSample; // Смещаемся по массиву данных
                     samplesRead += bytesRead / bytesPerSample; // Обновляем количество прочитанных сэмплов
                 }
-
                 // Нормализация данных
                 float maxAmplitude = audioData.Max(Math.Abs);
                 if (maxAmplitude > 0)
@@ -125,7 +118,7 @@ namespace GenreMusicNN
             float[][] mfcc = new float[numFrames][];
 
             // Заполняем массив MFCC коэффициентов
-            for (int i = 0; i < numFrames; ++i)
+            Parallel.For(0, numFrames, i =>
             {
                 mfcc[i] = new float[mfccCount];
                 double[] coefficients = mfccList[i].Descriptor;
@@ -133,7 +126,7 @@ namespace GenreMusicNN
                 {
                     mfcc[i][j] = Convert.ToSingle(coefficients[j]);
                 }
-            }
+            });
             return mfcc;
         }
 
@@ -160,53 +153,59 @@ namespace GenreMusicNN
         }
 
         // Приведение данных к нужному размеру (дополнение или обрезка)
-        private float[][][] PrepareDataForNeuralNetwork(float[][] mfcc)
+        private float[][][][] PrepareDataForNeuralNetwork(float[][] mfcc)
         {
             int currentLength = mfcc.Length;
-            int numCoefficients = mfcc[0].Length;
-            
             if (currentLength < timeSteps * stepMultyplier)
             {
-                // Дополнение (Padding)
+                // Дополнение
                 mfcc = PadMFCC(mfcc);
             }
             else if (currentLength > timeSteps * stepMultyplier)
             {
-                // Обрезка (Truncation)
+                // Обрезка
                 mfcc = TruncateMFCC(mfcc);
             }
 
-            return CompressMFCC(mfcc, timeSteps);
+            return CompressMFCC(mfcc);
         }
-        float[][][] CompressMFCC(float[][] mfcc, int targetLength)
+        float[][][][] CompressMFCC(float[][] mfcc)
         {
-            int currentLength = mfcc.Length;
-            int numCoefficients = mfcc[0].Length;
-
-            float[][][] compressedMFCC = new float[targetLength][][];
-            for (int i = 0; i < targetLength; i++)
+            float[][][][] compressedFactoredData = new float[3][][][];
+            int m = 0;
+            for (int stepFactor = 1; stepFactor <= 4; stepFactor *= 2)
             {
-                compressedMFCC[i] = new float[numCoefficients][];
-                float[] data = new float[stepMultyplier];
-                for (int k = 0; k < numCoefficients; ++k)
+                int _stepMultyplier = stepMultyplier * stepFactor;
+                int currentLength = mfcc.Length;
+                int numCoefficients = mfcc[0].Length;
+
+                float[][][] compressedMFCC = new float[timeSteps][][];
+                for (int i = 0; i < timeSteps; i++)
                 {
-                    for (int j = 0; j < stepMultyplier; ++j)
+                    compressedMFCC[i] = new float[numCoefficients][];
+                    float[] data = new float[_stepMultyplier];
+                    for (int k = 0; k < numCoefficients; ++k)
                     {
-                        int index = i * stepMultyplier + j;
-                        if (index < currentLength) // Проверка на выход за границы
+                        for (int j = 0; j < _stepMultyplier; ++j)
                         {
-                            data[j] = mfcc[index][k];
+                            int index = i * _stepMultyplier + j;
+                            if (index < currentLength) // Проверка на выход за границы
+                            {
+                                data[j] = mfcc[index][k];
+                            }
+                            else
+                            {
+                                data[j] = 0; // Если данных меньше, чем ожидается, заполняем нулями
+                            }
                         }
-                        else
-                        {
-                            data[j] = 0; // Если данных меньше, чем ожидается, заполняем нулями
-                        }
+                        (float K, float B) = LeastSquaresMethod(data);
+                        compressedMFCC[i][k] = new float[] { K, B };
                     }
-                    (float K, float B) = LeastSquaresMethod(data);
-                    compressedMFCC[i][k] = new float[]{K, B};
                 }
+                compressedFactoredData[m] = compressedMFCC;
+                m++;
             }
-            return compressedMFCC;
+            return compressedFactoredData;
         }
         // Метод для нахождения уравнения прямой методом наименьших квадратов
         (float k, float b) LeastSquaresMethod(float[] y)
@@ -279,68 +278,61 @@ namespace GenreMusicNN
         // Метод для обработки аудио и предсказания жанра
         public float[] ProcessAndClassify(string filePath)
         {
-            // Считываем аудиофайл и нормализуем его
-             float[][][] inputData = ProcessAudioFile(filePath);
-
-            // Преобразуем массив для работы с нейросетью (добавляем третье измерение для каналов)
-            float[][][][] inputForNetwork = inputData.Select(frame => frame.Select(coeff => coeff.Select(c => new float[] { c }).ToArray()).ToArray()).ToArray();
-
-            // Создаем экземпляр модели классификации
-            var classifier = new GenreClassifier(numMFCCs: mfccCount, 
-                numTimeSteps: timeSteps);
-            classifier.LoadModel("ReadyModel.h5");
-            // Предсказываем жанр на основе MFCC
-            float[] predictedGenre = classifier.Predict(inputForNetwork);
-
+            float[] predictedGenre = new float[TrainingData.GenreMapping.Count];
+            float[][][][] inputDatas = ProcessAudioFile(filePath);
+            foreach (var inputData in inputDatas)
+            {
+                // Преобразуем массив для работы с нейросетью (добавляем третье измерение для каналов)
+                float[][][][] inputForNetwork = inputData.Select(frame => frame.Select(coeff => coeff.Select(
+                    c => new float[] { c }).ToArray()).ToArray()).ToArray();
+                // Создаем экземпляр модели классификации
+                var classifier = new GenreClassifier(numMFCCs: mfccCount,
+                    numTimeSteps: timeSteps);
+                classifier.LoadModel("ReadyModel.h5");
+                // Предсказываем жанр на основе MFCC
+                for (int i = 0; i < predictedGenre.Length; i++)
+                {
+                    predictedGenre[i] += classifier.Predict(inputForNetwork)[i] / 3f;
+                }
+            }
             // Возвращаем индекс жанра с наибольшей вероятностью
             return predictedGenre;
         }
 
-        public void TrainModel(List<string> trainingFiles, List<float[]> labels)
+        public void TrainModel(string[] trainingFiles, float[][] labels)
         {
-            // Инициализация списков для входных данных и меток
-            List<float[][][]> X_train = new List<float[][][]>(); // Данные в виде трехмерного массива: {timeSteps, numCoefficients, 2}
-            List<float[]> Y_train = new List<float[]>();         // Векторы меток
-
-            for (int i = 0; i < trainingFiles.Count; i++)
+            // Инициализация массивов для входных данных и меток
+            int fileAmount = trainingFiles.Length * 3;            // Учитывая изменение pitch для каждого файла (0.5, 1, 2)
+            float[][][][] X_train = new float[fileAmount][][][];  // Данные в виде четырехмерного массива: {files, timeSteps, mfccCount, 2}
+            float[][] Y_train = new float[fileAmount][];          // Векторы меток
+            Parallel.For(0, trainingFiles.Length, i =>
             {
-                // Обработка каждого аудиофайла
-                float[][][] inputData = ProcessAudioFile(trainingFiles[i]);
-                // Преобразование в нужный формат для нейросети
-                float[][][] inputDataReshaped = new float[timeSteps][][];
-                for (int t = 0; t < timeSteps; t++)
+                float[][][][] inputDatas = ProcessAudioFile(trainingFiles[i]);
+                for (int j = 0; j < 3; ++j)
                 {
-                    inputDataReshaped[t] = new float[mfccCount][];
-                    // Копируем данные для каждого коэффициента (k и b)
-                    for (int k = 0; k < mfccCount; k++)
+                    // Преобразование в нужный формат для нейросети
+                    float[][][] inputDataReshaped = new float[timeSteps][][];
+                    for (int t = 0; t < timeSteps; t++)
                     {
-                        inputDataReshaped[t][k] = new float[2];  // {k, b}
-                        // Копируем коэффициенты k и b
-                        inputDataReshaped[t][k][0] = inputData[t][k][0]; // k
-                        inputDataReshaped[t][k][1] = inputData[t][k][1]; // b
+                        inputDataReshaped[t] = new float[mfccCount][];
+                        for (int k = 0; k < mfccCount; k++)
+                        {
+                            inputDataReshaped[t][k] = new float[2];  // {k, b}
+                            inputDataReshaped[t][k][0] = inputDatas[j][t][k][0]; // k
+                            inputDataReshaped[t][k][1] = inputDatas[j][t][k][1]; // b
+                        }
                     }
+                    // Сохраняем данные в массив
+                    X_train[i * 3 + j] = inputDataReshaped;
+                    Y_train[i * 3 + j] = labels[i];
                 }
-                // Добавляем подготовленные данные в список
-                X_train.Add(inputDataReshaped);
-                // Добавляем вектор меток для соответствующего аудиофайла
-                Y_train.Add(labels[i]);
-
                 ClearMemory(); // Чистим память после обработки каждого файла
-            }
-
-            // Конвертируем списки в массивы
-            var X_trainArray = X_train.ToArray();
-            var Y_trainArray = Y_train.ToArray();
-
+                Console.WriteLine(i + " Ready file " + trainingFiles[i]);
+            });
             // Создаем экземпляр модели классификации
             var classifier = new GenreClassifier(numMFCCs: mfccCount, numTimeSteps: timeSteps);
-
-            // Обучаем модель с новыми данными
-            classifier.Train(X_trainArray, Y_trainArray, batch_size: 32, epochs: 500);
-
-            // Сохраняем обученную модель
+            classifier.Train(X_train, Y_train, batch_size: 32, epochs: 500);
             classifier.SaveModel("ReadyModel.h5");
-
             ClearMemory(); // Чистим память после обучения
         }
 

@@ -18,7 +18,6 @@ namespace GenreMusicNN
         {
             this.numMFCCs = numMFCCs;
             this.numTimeSteps = numTimeSteps;
-
             // Определяем архитектуру модели
             BuildModel();
         }

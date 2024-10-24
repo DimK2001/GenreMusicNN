@@ -15,7 +15,11 @@
         protected void RetrainNetwork()
         {
             // trainingData.AudioFiles и TrainingData.Labels для обучения модели
-            audioProcessor.TrainModel(TrainingData.AudioFiles, TrainingData.Labels);
+            var thread = new Thread(() =>
+            {
+                audioProcessor.TrainModel(TrainingData.AudioFiles.ToArray(), TrainingData.Labels.ToArray());
+            });
+            thread.Start();
         }
         protected string GenreClassification(string filePath)
         {
@@ -51,6 +55,7 @@
 
         private void Start_Click(object sender, EventArgs e)
         {
+            Console.WriteLine("Classifying");
             Result.Text = GenreClassification(FileName.Text);
         }
 
