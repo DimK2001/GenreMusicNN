@@ -9,7 +9,7 @@ namespace GenreMusicNN
     {
         private int sampleRate;
         private const int mfccCount = 128; // Количество MFCC коэффициентов
-        private const int timeSteps = 1024; // Количество временных окон
+        private const int timeSteps = 1104; // Количество временных окон
         private const int stepMultyplier = 2;
 
         // Конструктор класса
@@ -155,7 +155,7 @@ namespace GenreMusicNN
         // Приведение данных к нужному размеру (дополнение или обрезка)
         private float[][][][] PrepareDataForNeuralNetwork(float[][] mfcc)
         {
-            int currentLength = mfcc.Length;
+            /*int currentLength = mfcc.Length;
             if (currentLength < timeSteps * stepMultyplier)
             {
                 // Дополнение
@@ -165,13 +165,13 @@ namespace GenreMusicNN
             {
                 // Обрезка
                 mfcc = TruncateMFCC(mfcc);
-            }
+            }*/
 
             return CompressMFCC(mfcc);
         }
         float[][][][] CompressMFCC(float[][] mfcc)
         {
-            float[][][][] compressedFactoredData = new float[3][][][];
+            float[][][][] compressedFactoredData = new float[6][][][];
             int m = 0;
             for (int stepFactor = 1; stepFactor <= 4; stepFactor *= 2)
             {
@@ -204,6 +204,36 @@ namespace GenreMusicNN
                 }
                 compressedFactoredData[m] = compressedMFCC;
                 m++;
+
+
+                if (mfcc.Length > timeSteps * _stepMultyplier)
+                {
+                    for (int i = 0; i < timeSteps; ++i)
+                    {
+                        int param = mfcc.Length - timeSteps * _stepMultyplier + i;
+                        compressedMFCC[i] = new float[numCoefficients][];
+                        float[] data = new float[_stepMultyplier];
+                        for (int k = 0; k < numCoefficients; ++k)
+                        {
+                            for (int j = 0; j < _stepMultyplier; ++j)
+                            {
+                                int index = param + j * _stepMultyplier;
+                                data[j] = mfcc[index][k];
+                            }
+                            (float K, float B) = LeastSquaresMethod(data);
+                            compressedMFCC[i][k] = new float[] { K, B };
+                        }
+                    }
+                    compressedFactoredData[m] = compressedMFCC;
+                    m++;
+                }
+                else
+                {
+                    for (int i = 0; i < 3; ++i)
+                    {
+                        compressedFactoredData[i + 3] = compressedFactoredData[i];
+                    }
+                }
             }
             return compressedFactoredData;
         }
@@ -292,7 +322,7 @@ namespace GenreMusicNN
                 // Предсказываем жанр на основе MFCC
                 for (int i = 0; i < predictedGenre.Length; i++)
                 {
-                    predictedGenre[i] += classifier.Predict(inputForNetwork)[i] / 3f;
+                    predictedGenre[i] += classifier.Predict(inputForNetwork)[i] / 6f;
                 }
             }
             // Возвращаем индекс жанра с наибольшей вероятностью
