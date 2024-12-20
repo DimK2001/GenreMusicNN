@@ -64,5 +64,16 @@
             await TrainingData.LoadSongBase();
             RetrainNetwork();
         }
+
+        private async void ModelTest_Click(object sender, EventArgs e)
+        {
+            await TrainingData.LoadSongBase();
+            await TrainingData.LoadTestBase();
+            var thread = new Thread(() =>
+            {
+                audioProcessor.TestModel(TrainingData.AudioFiles.ToArray(), TrainingData.TestFiles.ToArray(), TrainingData.Labels.ToArray(), TrainingData.TestLabels.ToArray());
+            });
+            thread.Start();
+        }
     }
 }

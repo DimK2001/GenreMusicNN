@@ -38,6 +38,7 @@
             Result = new Label();
             Retrain = new Button();
             WarningLabel = new Label();
+            ModelTest = new Button();
             SuspendLayout();
             // 
             // FileName
@@ -117,11 +118,23 @@
             WarningLabel.TabIndex = 7;
             WarningLabel.Text = resources.GetString("WarningLabel.Text");
             // 
+            // ModelTest
+            // 
+            ModelTest.Font = new Font("Segoe UI", 12F);
+            ModelTest.Location = new Point(423, 196);
+            ModelTest.Name = "ModelTest";
+            ModelTest.Size = new Size(169, 55);
+            ModelTest.TabIndex = 8;
+            ModelTest.Text = "Тест моделей";
+            ModelTest.UseVisualStyleBackColor = true;
+            ModelTest.Click += ModelTest_Click;
+            // 
             // MainWindow
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(599, 380);
+            Controls.Add(ModelTest);
             Controls.Add(WarningLabel);
             Controls.Add(Retrain);
             Controls.Add(Result);
@@ -148,5 +161,6 @@
         private Label Result;
         private Button Retrain;
         private Label WarningLabel;
+        private Button ModelTest;
     }
 }

@@ -9,7 +9,7 @@ namespace GenreMusicNN
     {
         private int sampleRate;
         private const int mfccCount = 128; // Количество MFCC коэффициентов
-        private const int timeSteps = 1104; // Количество временных окон
+        private const int timeSteps = 128; // Количество временных окон
         private const int stepMultyplier = 2;
 
         // Конструктор класса
@@ -362,6 +362,73 @@ namespace GenreMusicNN
             // Создаем экземпляр модели классификации
             var classifier = new GenreClassifier(numMFCCs: mfccCount, numTimeSteps: timeSteps);
             classifier.Train(X_train, Y_train, batch_size: 32, epochs: 500);
+            classifier.SaveModel("ReadyModel.h5");
+            ClearMemory(); // Чистим память после обучения
+        }
+
+        public void TestModel(string[] trainingFiles, string[] testFiles, float[][] labels, float[][] labelsTest)
+        {
+            // Инициализация массивов для входных данных и меток
+            int fileAmount = trainingFiles.Length * 3;            // Учитывая изменение pitch для каждого файла (0.5, 1, 2)
+            float[][][][] X_train = new float[fileAmount][][][];  // Данные в виде четырехмерного массива: {files, timeSteps, mfccCount, 2}
+            float[][] Y_train = new float[fileAmount][];          // Векторы меток
+            Parallel.For(0, trainingFiles.Length, i =>
+            {
+                float[][][][] inputDatas = ProcessAudioFile(trainingFiles[i]);
+                for (int j = 0; j < 3; ++j)
+                {
+                    // Преобразование в нужный формат для нейросети
+                    float[][][] inputDataReshaped = new float[timeSteps][][];
+                    for (int t = 0; t < timeSteps; t++)
+                    {
+                        inputDataReshaped[t] = new float[mfccCount][];
+                        for (int k = 0; k < mfccCount; k++)
+                        {
+                            inputDataReshaped[t][k] = new float[2];  // {k, b}
+                            inputDataReshaped[t][k][0] = inputDatas[j][t][k][0]; // k
+                            inputDataReshaped[t][k][1] = inputDatas[j][t][k][1]; // b
+                        }
+                    }
+                    // Сохраняем данные в массив
+                    X_train[i * 3 + j] = inputDataReshaped;
+                    Y_train[i * 3 + j] = labels[i];
+                }
+                ClearMemory(); // Чистим память после обработки каждого файла
+                Console.WriteLine(i + " Ready file " + trainingFiles[i]);
+            });
+
+            fileAmount = testFiles.Length * 3;
+            float[][][][] X_test = new float[fileAmount][][][];  // Данные в виде четырехмерного массива: {files, timeSteps, mfccCount, 2}
+            float[][] Y_test = new float[fileAmount][];          // Векторы меток
+            Parallel.For(0, testFiles.Length, i =>
+            {
+                float[][][][] inputDatas = ProcessAudioFile(testFiles[i]);
+                for (int j = 0; j < 3; ++j)
+                {
+                    // Преобразование в нужный формат для нейросети
+                    float[][][] inputDataReshaped = new float[timeSteps][][];
+                    for (int t = 0; t < timeSteps; t++)
+                    {
+                        inputDataReshaped[t] = new float[mfccCount][];
+                        for (int k = 0; k < mfccCount; k++)
+                        {
+                            inputDataReshaped[t][k] = new float[2];  // {k, b}
+                            inputDataReshaped[t][k][0] = inputDatas[j][t][k][0]; // k
+                            inputDataReshaped[t][k][1] = inputDatas[j][t][k][1]; // b
+                        }
+                    }
+                    // Сохраняем данные в массив
+                    X_test[i * 3 + j] = inputDataReshaped;
+                    Y_test[i * 3 + j] = labels[i];
+                }
+                ClearMemory(); // Чистим память после обработки каждого файла
+                Console.WriteLine(i + " Ready TEST file " + testFiles[i]);
+            });
+
+            // Создаем экземпляр модели классификации
+            var classifier = new GenreClassifier(numMFCCs: mfccCount, numTimeSteps: timeSteps);
+            classifier.CompareModels(X_train, Y_train, X_test, Y_test, 260);
+
             classifier.SaveModel("ReadyModel.h5");
             ClearMemory(); // Чистим память после обучения
         }
