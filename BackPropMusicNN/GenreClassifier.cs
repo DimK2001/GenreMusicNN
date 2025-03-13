@@ -3,7 +3,6 @@ using Keras.Layers;
 using Keras.Models;
 using Numpy;
 using Keras.Callbacks;
-using static Tensorflow.TensorShapeProto.Types;
 using PureHDF.Selections;
 
 namespace GenreMusicNN
@@ -187,6 +186,30 @@ namespace GenreMusicNN
             Console.WriteLine($"CNN + LSTM Accuracy: {lstmAccuracy[1]}, loss: {lstmAccuracy[0]} \n " +
                 $"CNN Accuracy: {cnnAccuracy[1]}, loss: {cnnAccuracy[0]}");
         }
+        public void TestWindowSizes(float[][][][] X_train, float[][] Y_train, float[][][][] X_test, float[][] Y_test, int timeSteps, int epochs)
+        {
+            Console.WriteLine($"Testing timeSteps = {timeSteps}");
+
+            // Создаем классификатор с текущим значением timeSteps
+            var cnnClassifier = new GenreClassifier(numTimeSteps: timeSteps);
+
+            Console.WriteLine("Testing CNN-only model...");
+            cnnClassifier.BuildCNNModel();
+            cnnClassifier.Train(X_train, Y_train, epochs: epochs);
+            var cnnResults = cnnClassifier.Evaluate(X_test, Y_test);
+
+            /*
+            var lstmClassifier = new GenreClassifier(numTimeSteps: steps);
+            Console.WriteLine("Testing CNN + LSTM model...");
+            lstmClassifier.BuildModel();
+            lstmClassifier.Train(X_train, Y_train, epochs: epochs);
+            var lstmResults = lstmClassifier.Evaluate(X_test, Y_test);*/
+
+            Console.WriteLine($"Results for timeSteps = {timeSteps}:");
+            Console.WriteLine($"CNN: Accuracy = {cnnResults[1]}, Loss = {cnnResults[0]}");
+            //Console.WriteLine($"CNN + LSTM: Accuracy = {lstmResults[1]}, Loss = {lstmResults[0]}");
+        }
+
         public double[] Evaluate(float[][][][] X_test, float[][] Y_test)
         {
             int dim1 = X_test.Length;
