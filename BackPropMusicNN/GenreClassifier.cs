@@ -14,7 +14,7 @@ namespace GenreMusicNN
         private Sequential model;
 
         // Конструктор для создания модели CNN + LSTM
-        public GenreClassifier(int numMFCCs = 13, int numTimeSteps = 128)
+        public GenreClassifier(int numMFCCs = 240, int numTimeSteps = 128)
         {
             this.numMFCCs = numMFCCs;
             this.numTimeSteps = numTimeSteps;
@@ -186,17 +186,17 @@ namespace GenreMusicNN
             Console.WriteLine($"CNN + LSTM Accuracy: {lstmAccuracy[1]}, loss: {lstmAccuracy[0]} \n " +
                 $"CNN Accuracy: {cnnAccuracy[1]}, loss: {cnnAccuracy[0]}");
         }
-        public void TestWindowSizes(float[][][][] X_train, float[][] Y_train, float[][][][] X_test, float[][] Y_test, int timeSteps, int epochs)
+        public void TestWindowSizes(float[][][][] X_train, float[][] Y_train, float[][][][] X_test, float[][] Y_test, int timeSteps, int epochs, int mfccCount)
         {
             Console.WriteLine($"Testing timeSteps = {timeSteps}");
 
             // Создаем классификатор с текущим значением timeSteps
-            var cnnClassifier = new GenreClassifier(numTimeSteps: timeSteps);
+            //var cnnClassifier = new GenreClassifier(numMFCCs: mfccCount, numTimeSteps: X_train[0].Length);
 
             Console.WriteLine("Testing CNN-only model...");
-            cnnClassifier.BuildCNNModel();
-            cnnClassifier.Train(X_train, Y_train, epochs: epochs);
-            var cnnResults = cnnClassifier.Evaluate(X_test, Y_test);
+            this.BuildCNNModel();
+            this.Train(X_train, Y_train, batch_size: timeSteps, epochs: epochs);
+            var cnnResults = this.Evaluate(X_test, Y_test);
 
             /*
             var lstmClassifier = new GenreClassifier(numTimeSteps: steps);

@@ -477,14 +477,13 @@ namespace GenreMusicNN
                 }
                 Console.WriteLine(i + " Ready file " + trainingFiles[i]);
             });
-
             // Подготовка тестовых данных
-            fileAmount = testFiles.Length * 3; // Тестовых файлов умножаем на количество шагов
-            float[][][][][] X_test = new float[testSteps.Length][][][][];  // Данные для теста
-            float[][][] Y_test = new float[testSteps.Length][][];          // Метки для теста
+            fileAmount = testFiles.Length;
+            float[][][][][] X_test = new float[steps][][][][];  // Данные для теста
+            float[][][] Y_test = new float[steps][][];          // Метки для теста
 
             // Инициализация X_test и Y_test
-            for (int stepFactor = 0; stepFactor < testSteps.Length; ++stepFactor)
+            for (int stepFactor = 0; stepFactor < steps; ++stepFactor)
             {
                 X_test[stepFactor] = new float[fileAmount][][][]; // Для каждого шага
                 Y_test[stepFactor] = new float[fileAmount][];    // Метки для каждого шага
@@ -493,7 +492,7 @@ namespace GenreMusicNN
             Parallel.For(0, testFiles.Length, i =>
             {
                 float[][][][] inputDatas = ProcessAudioFileTest(testFiles[i]);
-                for (int stepFactor = 0; stepFactor < testSteps.Length; ++stepFactor) // 12 шагов (3 фактора * 4 testSteps)
+                for (int stepFactor = 0; stepFactor < steps; ++stepFactor) // 12 шагов (3 фактора * 4 testSteps)
                 {
                     int testStepIndex = stepFactor / 3;
 
@@ -513,8 +512,8 @@ namespace GenreMusicNN
                                 inputDataReshaped[t][k][1] = inputDatas[stepFactor][t][k][1]; // B
                             }
                         }
-                        X_test[stepFactor][i * (inputDatas.Length / testSteps.Length) + j] = inputDataReshaped;
-                        Y_test[stepFactor][i * (inputDatas.Length / testSteps.Length) + j] = labelsTest[i];
+                        X_test[stepFactor][i] = inputDataReshaped; // Записываем в итоговый массив
+                        Y_test[stepFactor][i] = labelsTest[i]; // Заполняем метки
                     }
                 }
                 Console.WriteLine(i + " Ready TEST file " + testFiles[i]);
@@ -526,9 +525,14 @@ namespace GenreMusicNN
                 // Создаем экземпляр модели классификации
                 var classifier = new GenreClassifier(numMFCCs: mfccCount, numTimeSteps: testSteps[i]);
                 // Применяем метод тестирования с окнами
-                classifier.TestWindowSizes(X_train[i], Y_train[i], X_test[i], Y_test[i], testSteps[i], 256);
+                Console.WriteLine("Test of 2 factor:");
+                classifier.TestWindowSizes(X_train[i * 3], Y_train[i * 3], X_test[i * 3], Y_test[i * 3], testSteps[i], 256, mfccCount);
+                Console.WriteLine("Test of 4 factor:");
+                classifier.TestWindowSizes(X_train[i * 3 + 1], Y_train[i * 3 + 1], X_test[i * 3 + 1], Y_test[i * 3 + 1], testSteps[i], 256, mfccCount);
+                Console.WriteLine("Test of 8 factor:");
+                classifier.TestWindowSizes(X_train[i * 3 + 2], Y_train[i * 3 + 2], X_test[i * 3 + 2], Y_test[i * 3 + 2], testSteps[i], 256, mfccCount);
             }
-
+            Console.WriteLine("Test finished...............");
             // Очистка памяти после завершения
             ClearMemory();
         }
