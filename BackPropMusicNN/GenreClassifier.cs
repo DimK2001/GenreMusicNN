@@ -3,7 +3,6 @@ using Keras.Layers;
 using Keras.Models;
 using Numpy;
 using Keras.Callbacks;
-using PureHDF.Selections;
 
 namespace GenreMusicNN
 {
@@ -80,7 +79,36 @@ namespace GenreMusicNN
 
             model.Compile(optimizer: "adam", loss: "categorical_crossentropy", metrics: new string[] { "accuracy" });
         }
+        //Из статьи Traffic Density Classification Using Sound Datasets
+        private void BuildBiggerCNNModel()
+        {
+            var inputShape = new int[] { numTimeSteps, numMFCCs, 2 };
+            Shape shape = new Shape(inputShape);
 
+            model = new Sequential();
+
+            model.Add(new Conv2D(32, kernel_size: new Tuple<int, int>(3, 3), activation: "relu", padding: "same", input_shape: shape));
+            model.Add(new MaxPooling2D(pool_size: new Tuple<int, int>(2, 2)));
+
+            model.Add(new Conv2D(64, kernel_size: new Tuple<int, int>(3, 3), activation: "relu", padding: "same"));
+            model.Add(new MaxPooling2D(pool_size: new Tuple<int, int>(2, 2)));
+
+            model.Add(new Conv2D(128, kernel_size: new Tuple<int, int>(3, 3), activation: "relu", padding: "same"));
+            model.Add(new MaxPooling2D(pool_size: new Tuple<int, int>(2, 2)));
+
+            model.Add(new Conv2D(256, kernel_size: new Tuple<int, int>(3, 3), activation: "relu", padding: "same"));
+            model.Add(new MaxPooling2D(pool_size: new Tuple<int, int>(2, 2)));
+
+            model.Add(new Conv2D(512, kernel_size: new Tuple<int, int>(3, 3), activation: "relu", padding: "same"));
+            model.Add(new MaxPooling2D(pool_size: new Tuple<int, int>(2, 2)));
+
+            model.Add(new Flatten());
+            model.Add(new Dense(256, activation: "relu"));
+
+            model.Add(new Dense(TrainingData.GenreMapping.Count, activation: "softmax"));
+
+            model.Compile(optimizer: "adam", loss: "categorical_crossentropy", metrics: new string[] { "accuracy" });
+        }
 
         // Метод для обучения модели
         public void Train(float[][][][] X_train, float[][] Y_train, int batch_size = 32, int epochs = 500)
@@ -194,7 +222,7 @@ namespace GenreMusicNN
             //var cnnClassifier = new GenreClassifier(numMFCCs: mfccCount, numTimeSteps: X_train[0].Length);
 
             Console.WriteLine("Testing CNN-only model...");
-            this.BuildCNNModel();
+            BuildBiggerCNNModel();
             this.Train(X_train, Y_train, batch_size: timeSteps, epochs: epochs);
             var cnnResults = this.Evaluate(X_test, Y_test);
 
@@ -253,8 +281,7 @@ namespace GenreMusicNN
             NDarray Y_test_nd = np.array(flattenedY).reshape(y_dim1, y_dim2);
 
             var result = model.Evaluate(X_test_nd, Y_test_nd);
-            return result; // Точность (accuracy)
+            return result; // Точность и потери
         }
-
     }
 }

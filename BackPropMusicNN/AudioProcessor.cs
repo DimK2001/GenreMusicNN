@@ -10,12 +10,13 @@ namespace GenreMusicNN
     {
         private int sampleRate;
         private int mfccCount; // Количество MFCC коэффициентов
-        private int timeSteps = 624; // Количество временных окон
-        private const int stepMultyplier = 2;
-        int[] testSteps = new int[] { 32, 256, 512, 1024 };
+        private int timeSteps = 256; // Количество временных окон
+        private const int stepMultyplier = 2; 
+        private SpectrogramGenerator generator = new SpectrogramGenerator();
+        int[] testSteps = new int[] { 128, 256, 320, 400 };
 
         // Конструктор класса
-        public AudioProcessor(int sampleRate = 44100, int mfccCount = 240, int timeSteps = 624)
+        public AudioProcessor(int sampleRate = 40000, int mfccCount = 140, int timeSteps = 256)
         {
             this.sampleRate = sampleRate;
             this.mfccCount = mfccCount;
@@ -215,9 +216,17 @@ namespace GenreMusicNN
         }
         float[][][][] CompressMFCC(float[][] mfcc, int _timeStep)
         {
+            /*var spectrum = new float[512][];
+            for (int i = 0; i < spectrum.Length; i++)
+            {
+                spectrum[i] = mfcc[i*45];
+            }
+            //Сохранение изначальной спектрограммы
+            generator.SaveSpectrogram(spectrum, "Mel_Spectrum.png");*/
+
             float[][][][] compressedFactoredData = new float[3][][][];
             int m = 0;
-            for (int stepFactor = 2; stepFactor <= 8; stepFactor *= 2)// 2, 4, 8
+            for (int stepFactor = 20; stepFactor <= 70; stepFactor += 25)// 20, 45, 70
             {
                 int _stepMultyplier = stepMultyplier * stepFactor;
                 int currentLength = mfcc.Length;
@@ -525,12 +534,12 @@ namespace GenreMusicNN
                 // Создаем экземпляр модели классификации
                 var classifier = new GenreClassifier(numMFCCs: mfccCount, numTimeSteps: testSteps[i]);
                 // Применяем метод тестирования с окнами
-                Console.WriteLine("Test of 2 factor:");
-                classifier.TestWindowSizes(X_train[i * 3], Y_train[i * 3], X_test[i * 3], Y_test[i * 3], testSteps[i], 256, mfccCount);
-                Console.WriteLine("Test of 4 factor:");
-                classifier.TestWindowSizes(X_train[i * 3 + 1], Y_train[i * 3 + 1], X_test[i * 3 + 1], Y_test[i * 3 + 1], testSteps[i], 256, mfccCount);
-                Console.WriteLine("Test of 8 factor:");
-                classifier.TestWindowSizes(X_train[i * 3 + 2], Y_train[i * 3 + 2], X_test[i * 3 + 2], Y_test[i * 3 + 2], testSteps[i], 256, mfccCount);
+                Console.WriteLine("!!!!!!!!!!Test of 20 factor:");
+                classifier.TestWindowSizes(X_train[i * 3], Y_train[i * 3], X_test[i * 3], Y_test[i * 3], testSteps[i], 400, mfccCount);
+                Console.WriteLine("!!!!!!!!!!Test of 45 factor:");
+                classifier.TestWindowSizes(X_train[i * 3 + 1], Y_train[i * 3 + 1], X_test[i * 3 + 1], Y_test[i * 3 + 1], testSteps[i], 400, mfccCount);
+                Console.WriteLine("!!!!!!!!!!Test of 70 factor:");
+                classifier.TestWindowSizes(X_train[i * 3 + 2], Y_train[i * 3 + 2], X_test[i * 3 + 2], Y_test[i * 3 + 2], testSteps[i], 400, mfccCount);
             }
             Console.WriteLine("Test finished...............");
             // Очистка памяти после завершения

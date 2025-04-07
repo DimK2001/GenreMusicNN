@@ -18,7 +18,7 @@ namespace GenreMusicNN
         static void Main()
         {
             Keras.Keras.DisablePySysConsoleLog = true;
-            var audioProcessor = new AudioProcessor(44100);
+            var audioProcessor = new AudioProcessor();
             // Добавляем жанры
             TrainingData.AddGenre(0, "Rock/Metal");
             TrainingData.AddGenre(1, "Pop");
