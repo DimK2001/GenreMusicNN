@@ -17,7 +17,7 @@
             // trainingData.AudioFiles и TrainingData.Labels для обучения модели
             var thread = new Thread(() =>
             {
-                audioProcessor.TrainModel(TrainingData.AudioFiles.ToArray(), TrainingData.Labels.ToArray());
+                audioProcessor.TrainModel(TrainingData.AudioFiles.ToArray(), TrainingData.Labels.ToArray(), TrainingData.TestFiles.ToArray(), TrainingData.TestLabels.ToArray());
             });
             thread.Start();
         }
@@ -62,6 +62,8 @@
         private async void Retrain_Click(object sender, EventArgs e)
         {
             await TrainingData.LoadSongBase();
+            await TrainingData.LoadTestBase();
+            TrainingData.CountSongsByGenre();
             RetrainNetwork();
         }
 
@@ -69,6 +71,7 @@
         {
             await TrainingData.LoadSongBase();
             await TrainingData.LoadTestBase();
+            TrainingData.CountSongsByGenre();
             var thread = new Thread(() =>
             {
                 audioProcessor.TestModel(TrainingData.AudioFiles.ToArray(), TrainingData.TestFiles.ToArray(), TrainingData.Labels.ToArray(), TrainingData.TestLabels.ToArray());

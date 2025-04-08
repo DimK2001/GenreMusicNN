@@ -25,6 +25,7 @@ namespace GenreMusicNN
         {
             AudioFiles.Add(filePath);
             Labels.Add(labelVector);
+            
         }
         public static void AddTestFile(string filePath, float[] labelVector)
         {
@@ -71,7 +72,43 @@ namespace GenreMusicNN
             File.WriteAllText(fileName, jsonString);
         }
 
-        public class Song
+        public static void CountSongsByGenre()
+        {
+            // Создаем словарь для подсчета количества песен по жанрам
+            var genreCount = new Dictionary<int, int>();
+
+            // Проходим по меткам жанров для всех песен
+            foreach (var labelVector in Labels)
+            {
+                // Для каждой песни проверяем, какой жанр активен (где значение больше 0)
+                for (int i = 0; i < labelVector.Length; i++)
+                {
+                    if (labelVector[i] >= 0.5f)
+                    {
+                        if (genreCount.ContainsKey(i))
+                        {
+                            genreCount[i]++;
+                        }
+                        else
+                        {
+                            genreCount[i] = 1;
+                        }
+                    }
+                }
+            }
+
+            // Выводим количество песен для каждого жанра
+            foreach (var genre in genreCount)
+            {
+                string genreName = GenreMapping.ContainsKey(genre.Key)
+                    ? GenreMapping[genre.Key]
+                    : "Unknown Genre";
+
+                Console.WriteLine($"{genreName}: {genre.Value} songs");
+            }
+        }
+
+    public class Song
         {
             public string filePath { get; set; }
             public float[] labelVector { get; set; }

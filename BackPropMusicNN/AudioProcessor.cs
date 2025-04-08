@@ -13,7 +13,7 @@ namespace GenreMusicNN
         private int timeSteps = 256; // Количество временных окон
         private const int stepMultyplier = 2; 
         private SpectrogramGenerator generator = new SpectrogramGenerator();
-        int[] testSteps = new int[] { 128, 256, 320, 400 };
+        int[] testSteps = new int[] { 64, 88, 144, 256, 320, 400 };
 
         // Конструктор класса
         public AudioProcessor(int sampleRate = 40000, int mfccCount = 140, int timeSteps = 256)
@@ -226,7 +226,7 @@ namespace GenreMusicNN
 
             float[][][][] compressedFactoredData = new float[3][][][];
             int m = 0;
-            for (int stepFactor = 20; stepFactor <= 70; stepFactor += 25)// 20, 45, 70
+            for (int stepFactor = 4; stepFactor <= 104; stepFactor += 50)// 4, 54, 104
             {
                 int _stepMultyplier = stepMultyplier * stepFactor;
                 int currentLength = mfcc.Length;
@@ -405,7 +405,7 @@ namespace GenreMusicNN
             return predictedGenre;
         }
 
-        public void TrainModel(string[] trainingFiles, float[][] labels)
+        public void TrainModel(string[] trainingFiles, float[][] labels, string[] testFiles, float[][] testLabels)
         {
             // Инициализация массивов для входных данных и меток
             int fileAmount = trainingFiles.Length * 3;            // Учитывая изменение pitch для каждого файла (0.5, 1, 2)
@@ -435,9 +435,39 @@ namespace GenreMusicNN
                 ClearMemory(); // Чистим память после обработки каждого файла
                 Console.WriteLine(i + " Ready file " + trainingFiles[i]);
             });
-            // Создаем экземпляр модели классификации
+
+            // Загрузка тестовой базы
+            float[][][][] X_test = new float[testFiles.Length * 3][][][];
+            float[][] Y_test = new float[testFiles.Length * 3][];
+
+            Parallel.For(0, testFiles.Length, i =>
+            {
+                float[][][][] inputDatas = ProcessAudioFile(testFiles[i]);
+                for (int j = 0; j < 3; ++j)
+                {
+                    // Используем только оригинальный pitch (inputDatas[1]) для теста
+                    float[][][] inputDataReshaped = new float[timeSteps][][];
+
+                    for (int t = 0; t < timeSteps; t++)
+                    {
+                        inputDataReshaped[t] = new float[mfccCount][];
+                        for (int k = 0; k < mfccCount; k++)
+                        {
+                            inputDataReshaped[t][k] = new float[2];
+                            inputDataReshaped[t][k][0] = inputDatas[j][t][k][0];
+                            inputDataReshaped[t][k][1] = inputDatas[j][t][k][1];
+                        }
+                    }
+                    X_test[i * 3 + j] = inputDataReshaped;
+                    Y_test[i * 3 + j] = labels[i];
+                }
+                Console.WriteLine(i + " Ready test file " + testFiles[i]);
+                ClearMemory(); // Чистим память после обработки каждого файла
+            });
+
+            // Обучение модели с тестовыми данными
             var classifier = new GenreClassifier(numMFCCs: mfccCount, numTimeSteps: timeSteps);
-            classifier.Train(X_train, Y_train, batch_size: 32, epochs: 500);
+            classifier.Train(X_train, Y_train, X_test, Y_test, batch_size: 32, epochs: 500);
             classifier.SaveModel("ReadyModel.h5");
             ClearMemory(); // Чистим память после обучения
         }
@@ -534,12 +564,52 @@ namespace GenreMusicNN
                 // Создаем экземпляр модели классификации
                 var classifier = new GenreClassifier(numMFCCs: mfccCount, numTimeSteps: testSteps[i]);
                 // Применяем метод тестирования с окнами
-                Console.WriteLine("!!!!!!!!!!Test of 20 factor:");
-                classifier.TestWindowSizes(X_train[i * 3], Y_train[i * 3], X_test[i * 3], Y_test[i * 3], testSteps[i], 400, mfccCount);
-                Console.WriteLine("!!!!!!!!!!Test of 45 factor:");
-                classifier.TestWindowSizes(X_train[i * 3 + 1], Y_train[i * 3 + 1], X_test[i * 3 + 1], Y_test[i * 3 + 1], testSteps[i], 400, mfccCount);
-                Console.WriteLine("!!!!!!!!!!Test of 70 factor:");
-                classifier.TestWindowSizes(X_train[i * 3 + 2], Y_train[i * 3 + 2], X_test[i * 3 + 2], Y_test[i * 3 + 2], testSteps[i], 400, mfccCount);
+                Console.WriteLine("!!!!!!!!!!Test of 4 factor:");
+                classifier.TestWindowSizes(X_train[i * 3], Y_train[i * 3], X_test[i * 3], Y_test[i * 3], testSteps[i], 512, mfccCount);
+                Console.WriteLine("!!!!!!!!!!Test of 54 factor:");
+                classifier.TestWindowSizes(X_train[i * 3 + 1], Y_train[i * 3 + 1], X_test[i * 3 + 1], Y_test[i * 3 + 1], testSteps[i], 512, mfccCount);
+                Console.WriteLine("!!!!!!!!!!Test of 104 factor:");
+                classifier.TestWindowSizes(X_train[i * 3 + 2], Y_train[i * 3 + 2], X_test[i * 3 + 2], Y_test[i * 3 + 2], testSteps[i], 512, mfccCount);
+            }
+            // Четвёртый шаг — усреднение предсказаний по всем 3 масштабам
+            for (int i = 0; i < testSteps.Length; ++i)
+            {
+                var classifier = new GenreClassifier(numMFCCs: mfccCount, numTimeSteps: testSteps[i]);
+                Console.WriteLine("!!!!!!!!!!Test of ALL factors (avg):");
+
+                // Объединение 3 версий для каждого примера (обучающего и тестового)
+                int trainLen = X_train[i * 3].Length;
+                float[][][][] X_train_merged = new float[trainLen * 3][][][];
+                float[][] Y_train_merged = new float[trainLen * 3][];
+                for (int j = 0; j < trainLen; ++j)
+                {
+                    for (int k = 0; k < 3; ++k)
+                    {
+                        X_train_merged[j * 3 + k] = X_train[i * 3 + k][j];
+                        Y_train_merged[j * 3 + k] = Y_train[i * 3 + k][j];
+                    }
+                }
+
+                int testLen = X_test[i * 3].Length;
+                float[][][][] X_test_merged = new float[testLen][][][];
+                float[][] Y_test_merged = new float[testLen][];
+                for (int j = 0; j < testLen; ++j)
+                {
+                    float[] predictionSum = new float[TrainingData.GenreMapping.Count];
+                    float[] label = Y_test[i * 3][j]; // одинаковые метки на всех 3
+                    for (int k = 0; k < 3; ++k)
+                    {
+                        var prediction = classifier.Predict(new float[][][][] { X_test[i * 3 + k][j] });
+                        for (int g = 0; g < prediction.Length; g++)
+                            predictionSum[g] += prediction[g] / 3f;
+                    }
+                    // Можно сохранить predictionSum или вывести accuracy на основе всех
+                    X_test_merged[j] = X_test[i * 3][j]; // не важно, что тут — нужно только Y для сравнения
+                    Y_test_merged[j] = label; // одна метка
+                }
+
+                // Финальный вызов тестирования
+                classifier.TestWindowSizes(X_train_merged, Y_train_merged, X_test_merged, Y_test_merged, testSteps[i], 512, mfccCount);
             }
             Console.WriteLine("Test finished...............");
             // Очистка памяти после завершения

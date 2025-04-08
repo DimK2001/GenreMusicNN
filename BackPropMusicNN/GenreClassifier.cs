@@ -3,6 +3,7 @@ using Keras.Layers;
 using Keras.Models;
 using Numpy;
 using Keras.Callbacks;
+using System.Xml.Linq;
 
 namespace GenreMusicNN
 {
@@ -19,7 +20,7 @@ namespace GenreMusicNN
             this.numTimeSteps = numTimeSteps;
             // Определяем архитектуру модели
             //BuildModel();
-            BuildCNNModel();
+            BuildBiggerCNNModel();
         }
 
         // Метод построения архитектуры CNN + LSTM
@@ -111,7 +112,7 @@ namespace GenreMusicNN
         }
 
         // Метод для обучения модели
-        public void Train(float[][][][] X_train, float[][] Y_train, int batch_size = 32, int epochs = 500)
+        public void Train(float[][][][] X_train, float[][] Y_train, float[][][][] X_test = null, float[][] Y_test = null, int batch_size = 32, int epochs = 500)
         {
             // Преобразование 4D массива в одномерный и передача его в NDarray с правильной формой
             int dim1 = X_train.Length;
@@ -156,6 +157,13 @@ namespace GenreMusicNN
             Console.WriteLine("Starting training...");
             model.Fit(X_train_nd, Y_train_nd, batch_size: batch_size, epochs: epochs, callbacks: new Callback[] { earlyStopping });
             Console.WriteLine("Ready!");
+
+            // Если переданы тестовые данные – выполняем оценку
+            if (X_test != null && Y_test != null)
+            {
+                var metrics = Evaluate(X_test, Y_test);
+                Console.WriteLine($"[Post-Train Evaluation] Loss = {metrics[0]}, Accuracy = {metrics[1]}");
+            }
         }
 
         // Метод для предсказания жанра
@@ -214,29 +222,46 @@ namespace GenreMusicNN
             Console.WriteLine($"CNN + LSTM Accuracy: {lstmAccuracy[1]}, loss: {lstmAccuracy[0]} \n " +
                 $"CNN Accuracy: {cnnAccuracy[1]}, loss: {cnnAccuracy[0]}");
         }
-        public void TestWindowSizes(float[][][][] X_train, float[][] Y_train, float[][][][] X_test, float[][] Y_test, int timeSteps, int epochs, int mfccCount)
+
+        public void TestWindowSizes(float[][][][] X_train, float[][] Y_train, float[][][][] X_test, float[][] Y_test, int timeSteps, int epochs, int mfccCount, string outputPath = "test_results.txt")
         {
             Console.WriteLine($"Testing timeSteps = {timeSteps}");
 
-            // Создаем классификатор с текущим значением timeSteps
-            //var cnnClassifier = new GenreClassifier(numMFCCs: mfccCount, numTimeSteps: X_train[0].Length);
+            // Открываем файл для дозаписи
+            using (StreamWriter writer = new StreamWriter(outputPath, append: true))
+            {
+                // Заголовок таблицы
+                writer.WriteLine($"TimeSteps = {timeSteps}");
+                writer.WriteLine("Model\tAccuracy\tLoss");
+                Console.WriteLine($"TimeSteps = {timeSteps}");
+                Console.WriteLine("Model\tAccuracy\tLoss");
 
-            Console.WriteLine("Testing CNN-only model...");
-            BuildBiggerCNNModel();
-            this.Train(X_train, Y_train, batch_size: timeSteps, epochs: epochs);
-            var cnnResults = this.Evaluate(X_test, Y_test);
+                // --- CNN-only ---
+                Console.WriteLine("Testing CNN-only model...");
+                BuildBiggerCNNModel();
+                this.Train(X_train, Y_train, batch_size: timeSteps, epochs: epochs);
+                var cnnResults = this.Evaluate(X_test, Y_test);
 
-            /*
-            var lstmClassifier = new GenreClassifier(numTimeSteps: steps);
-            Console.WriteLine("Testing CNN + LSTM model...");
-            lstmClassifier.BuildModel();
-            lstmClassifier.Train(X_train, Y_train, epochs: epochs);
-            var lstmResults = lstmClassifier.Evaluate(X_test, Y_test);*/
+                // Вывод и в консоль, и в файл
+                string cnnLine = $"CNN\t{cnnResults[1]:F4}\t{cnnResults[0]:F4}";
+                Console.WriteLine(cnnLine);
+                writer.WriteLine(cnnLine);
 
-            Console.WriteLine($"Results for timeSteps = {timeSteps}:");
-            Console.WriteLine($"CNN: Accuracy = {cnnResults[1]}, Loss = {cnnResults[0]}");
-            //Console.WriteLine($"CNN + LSTM: Accuracy = {lstmResults[1]}, Loss = {lstmResults[0]}");
+                // --- Если добавишь CNN+LSTM позже ---
+                /*
+                BuildModel();
+                Train(X_train, Y_train, batch_size: timeSteps, epochs: epochs);
+                var lstmResults = Evaluate(X_test, Y_test);
+                string lstmLine = $"CNN+LSTM\t{lstmResults[1]:F4}\t{lstmResults[0]:F4}";
+                Console.WriteLine(lstmLine);
+                writer.WriteLine(lstmLine);
+                */
+
+                writer.WriteLine(); // Пустая строка в конце блока
+                Console.WriteLine(); // Для читаемости
+            }
         }
+
 
         public double[] Evaluate(float[][][][] X_test, float[][] Y_test)
         {
